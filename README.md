@@ -1,191 +1,143 @@
-# Healthcare-Analytics
+# Zomato Data Analysis
 
-Healthcare Analytics Project Overview
+## Overview
 
-Overview
+This project demonstrates my SQL, Python, Excel, Power BI, and AI problem-solving skills through the analysis of data for Zomato, a popular food delivery company in India. The project involves preprocessing data using ChatGPT and Excel, importing data, handling null values, and solving a variety of business problems using complex SQL queries, generating insights and actionable recommendations.
 
-This project provides a comprehensive demonstration of data analysis, cleaning, and business intelligence skills using SQL, Python (Jupyter), and Power BI. The core objective was to analyze operational, financial, and patient data for a healthcare provider to derive strategic, actionable recommendations for optimizing revenue, efficiency, and patient care delivery.
+## Project Structure
 
-The process involved initial AI-assisted data assessment, extensive data standardization in SQL, detailed statistical analysis in Python, and the calculation of key performance indicators (KPIs) to drive strategic insights.
+- Early Preprocessing (ChatGPT): Data quality assessment
+- Excel Preprocessing: Duplicate removal & cleaning
+- SQL Data Cleaning: Null handling & standardization
+- Power BI Visualization & DAX Measures: Avg Order Value, Avg Rating, Avg Sale, Last Order Date, Total Orders, Total Sales
+- Business Problem-Solving (SQL): Addressed key business queries
 
-Project Structure
+## SQL Code
 
-Early Preprocessing (AI/ChatGPT): Initial data quality assessment, identification of dirty values (e.g., inconsistent gender or condition names), and planning the cleaning strategy.
+-- Standardize Date Format (DD-MM-YYYY HH:MM)
+UPDATE Zomato
+SET order_datetime = TRY_CONVERT(DATETIME, order_datetime, 105);
 
-SQL Data Cleaning (Health Care.sql):
+-- Recalculate missing total_amount
+UPDATE Zomato
+SET total_amount = (quantity * item_price) - discount_amount
+WHERE total_amount IS NULL;
 
-Standardization: Cleaned and standardized values for Gender, Medical_Condition, Insurance, and Hospital names to ensure data consistency.
+-- Standardize city names (trim + proper case)
+UPDATE Zomato
+SET city = LTRIM(RTRIM(LOWER(city)));
 
-Data Quality: Handled nulls and ensured proper casing across various fields.
+-- Clean phone numbers (remove spaces, symbols)
+UPDATE Zomato
+SET customer_phone = REPLACE(REPLACE(REPLACE(customer_phone, ' ', ''), '-', ''), '(+91)', '91');
 
-Python Analysis & Feature Engineering (Health Care.ipynb / Health AI.pdf):
+-- Handle missing payment_method
+UPDATE Zomato
+SET payment_method = 'Unknown'
+WHERE payment_method IS NULL;
 
-Exploratory Data Analysis (EDA): Initial loading, inspection, and cleaning using pandas.
+-- Update all customer_name names in a table
+UPDATE Zomato
+SET customer_name = UPPER(LEFT(customer_name, 1)) + LOWER(SUBSTRING(customer_name, 2, LEN(customer_name)));
 
-Feature Engineering: Extracted temporal features like Admission_Month_Name from date fields for time-series analysis.
+-- Update all area names in a table
+UPDATE Zomato
+SET area = UPPER(LEFT(area, 1)) + LOWER(SUBSTRING(area, 2, LEN(area)));
 
-Statistical Analysis: Identified seasonal patterns in diagnoses (e.g., Dengue, Cataracts) and analyzed month-over-month trends for admissions and discharges.
+-- Update all restaurant names in a table
+UPDATE Zomato
+SET restaurant_name = UPPER(LEFT(restaurant_name, 1)) + LOWER(SUBSTRING(restaurant_name, 2, LEN(restaurant_name)));
 
-Presentation & Visualization (Power BI / Health Care Final.pptx):
+-- KPI Queries
 
-KPI Calculation: Used calculated measures (DAX) for Total Revenue, Total Patients, Avg LOS (Days), and Avg Billing Amount.
+-- Total Revenue
+SELECT SUM(total_amount) AS Total_Revenue FROM Zomato;
 
-Strategic Insights: Visualized trends (e.g., Monthly Revenue) and deep-dive analysis (e.g., LOS by Condition, Gender Billing, Age Group Billing) in the Power BI dashboard.
+-- Top 5 Restaurants by Revenue
+SELECT TOP 5 restaurant_name, SUM(total_amount) AS Revenue
+FROM Zomato
+GROUP BY restaurant_name
+ORDER BY Revenue DESC;
 
-SQL Code
+-- Average Customer Rating
+SELECT AVG(rating) AS Avg_Rating FROM Zomato WHERE rating IS NOT NULL;
 
---Standardize Gender values
+-- Customer Segmentation by Total Amount
+SELECT
+    total_amount,
+    CASE
+        WHEN total_amount > 1200 THEN 'Gold'
+        WHEN total_amount > 600 AND total_amount <= 1200 THEN 'Silver'
+        WHEN total_amount > 0 AND total_amount <= 600 THEN 'Bronze'
+        ELSE 'UNKNOWN'
+    END AS Customer_Segment
+FROM Zomato;
 
-UPDATE [dbo].[HealthCare]
-SET Gender = CASE 
-    WHEN UPPER(Gender) IN ('MALE', 'M') THEN 'Male'
-    WHEN UPPER(Gender) IN ('FEMALE', 'F') THEN 'Female'
-    WHEN UPPER(Gender) IN ('O', 'OTHER') THEN 'Other'
-    ELSE Gender
-END;
+## Python Code
 
---Standardize Name capitalization
-Update HealthCare
-SET Name = UPPER(SUBSTRING(Name,1,1)) 
-          + LOWER(SUBSTRING(Name,2,LEN(Name)-1));
-
---Standardize Medical Conditions
-
-Update HealthCare
-SET Medical_Condition = CASE 
-    WHEN UPPER(Medical_Condition) LIKE '%DIABETES%' 
-         OR UPPER(Medical_Condition) = 'SUGAR' THEN 'Diabetes Type 2'
-    WHEN UPPER(Medical_Condition) = 'TYPHOID' THEN 'Typhoid'
-    WHEN UPPER(Medical_Condition) = 'DENGUE' THEN 'Dengue'
-    WHEN UPPER(Medical_Condition) = 'HYPERTENSION' THEN 'Hypertension'
-    WHEN UPPER(Medical_Condition) = 'ASTHMA' THEN 'Asthma'
-    WHEN UPPER(Medical_Condition) = 'ANEMIA' THEN 'Anemia'
-    WHEN UPPER(Medical_Condition) = 'JAUNDICE' THEN 'Jaundice'
-    WHEN UPPER(Medical_Condition) = 'CATARACTS' THEN 'Cataracts'
-    WHEN UPPER(Medical_Condition) = 'ORGAN TRANSPLANT' THEN 'Organ Transplant'
-    ELSE Medical_Condition
-END;
-
---Standardize Insurance Provider
-
-Update HealthCare
-SET Insurance = CASE 
-    WHEN UPPER(Insurance) = 'NIC' THEN 'NIC'
-    WHEN UPPER(Insurance) = 'UIC' THEN 'UIC'
-    WHEN UPPER(Insurance) = 'OIC' THEN 'OIC'
-    WHEN UPPER(Insurance) = 'NIACL' THEN 'NIACL'
-    WHEN UPPER(Insurance) = 'EHS' THEN 'ESIC'
-    WHEN UPPER(Insurance) IN ('SELF-PAY', 'SELF PAY') THEN 'Cash'
-    ELSE Insurance
-END;
-
---Standardize Hospital Names
-
-Update HealthCare
-SET Hospital = CASE
-    WHEN Hospital LIKE '%Apollo%Mumbai%' THEN 'Apollo Hospital Mumbai'
-    WHEN Hospital LIKE '%Apollo%' AND Hospital NOT LIKE '%Mumbai%' THEN 'Apollo Hospital'
-    WHEN Hospital LIKE '%AIIMS%' THEN 'AIIMS Delhi'
-    WHEN Hospital LIKE '%Fortis%Bangalore%' THEN 'Fortis Healthcare Bangalore'
-    WHEN Hospital LIKE '%Fortis%' AND Hospital NOT LIKE '%Bangalore%' THEN 'Fortis Healthcare'
-    WHEN Hospital LIKE '%Manipal%' THEN 'Manipal Hospital Bangalore'
-    WHEN Hospital LIKE '%Max Super%' THEN 'Max Super Speciality Delhi'
-    WHEN Hospital LIKE '%Medanta%' THEN 'Medanta Gurugram'
-    WHEN Hospital LIKE '%Narayana%' THEN 'Narayana Health Bangalore'
-    WHEN Hospital LIKE '%KIMS%' THEN 'KIMS Hyderabad'
-    WHEN Hospital LIKE '%Government%Chennai%' THEN 'Government Hospital Chennai'
-    WHEN Hospital LIKE '%Government%Kolkata%' THEN 'Government Hospital Kolkata'
-    WHEN Hospital LIKE '%Government%Pune%' THEN 'Government Hospital Pune'
-    ELSE Hospital
-END;
-
-Python Code
-
+```python
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-df = pd.read_csv("C:/Users/HP/OneDrive/Desktop/Healthcare Project/Healthcare Messy.csv")
+
+# Load the dataset
+df = pd.read_csv(r"C:\Users\HP\OneDrive\Desktop\Zomato.csv")
 df.head()
+
+# Check for missing values
+df.isnull().sum()
 df.info()
-df.describe()
 
-# Converting source columns 'DOA' and 'DOD' to datetime format
-# and create alias columns 'Admission_Date' and 'Discharge_Date' for compatibility
+# Convert 'order_datetime' to datetime format
+df['order_datetime'] = pd.to_datetime(df['order_datetime'], format='mixed', dayfirst=True)
 
-df['DOA'] = pd.to_datetime(df['DOA'], format='%d-%m-%Y', errors='coerce')
-df['DOD'] = pd.to_datetime(df['DOD'], format='%d-%m-%Y', errors='coerce')
+# Extract month, year, and day from 'order_datetime'
+df['Order_Month'] = df['order_datetime'].dt.month
+df['Order_Year'] = df['order_datetime'].dt.year
+df['Order_Day'] = df['order_datetime'].dt.day
 
-# create the expected column names so downstream code that uses
-# Admission_Date / Discharge_Date won't fail
-df['Admission_Date'] = df['DOA']
-df['Discharge_Date'] = df['DOD']
-df['Length_of_Stay'] = (df['Discharge_Date'] - df['Admission_Date']).dt.days
-df.head()
-# Extract year and month from admission
-df['Admission_Year'] = df['Admission_Date'].dt.year
-df['Admission_Month'] = df['Admission_Date'].dt.month
-df['Admission_Month_Name'] = df['Admission_Date'].dt.month_name()
-df.head()
-# Strip whitespace and standardize
-df['Hospital'] = df['Hospital'].str.strip()
+# Handle missing values
+df = df.dropna(subset=['customer_email', 'customer_phone'])
+df['payment_method'].fillna('Unknown', inplace=True)
 
-# Fix common variations
-hospital_fixes = {
-    'Govt. Hospital Chennai': 'Government Hospital Chennai',
-    'Govt.  Chennai': 'Government Hospital Chennai',
-    'Govt. Hospital Pune': 'Government Hospital Pune',
-    'Govt.  Pune': 'Government Hospital Pune',
-    'Govt.  Hospital  Pune': 'Government Hospital Pune',
-    'Government  Kolkata': 'Government Hospital Kolkata',
-    'Max  Super  Speciality  Delhi': 'Max Super Speciality Delhi',
-    'Manipal  Bangalore': 'Manipal Hospital Bangalore',
-    'Apollo  Mumbai': 'Apollo Hospital Mumbai',
-    'Fortis': 'Fortis Healthcare',
-    'Apollo': 'Apollo Hospital'
-}
+# Check for duplicates
+df.duplicated().sum()
+df[df.duplicated(keep=False)].sort_values(by=['order_id'])
 
-df['Hospital'] = df['Hospital'].replace(hospital_fixes)
+# Plot the number of orders per month
+sns.lineplot(x='Order_Month', y='total_amount', data=df)
+plt.title('Order Amount by Month')
+plt.show()
 
-print("✓ Hospital names standardized")
-print(f"Unique hospitals: {df['Hospital'].nunique()}")
-df.head()
-df['Billing_Amount'] = df['Billing_Amount'].astype(str)
-df['Billing_Amount'] = df['Billing_Amount'].str.replace('â‚¹', '', regex=False)  # Remove rupee symbol
-df['Billing_Amount'] = df['Billing_Amount'].str.replace('₹', '', regex=False)  # Remove another rupee symbol
-df['Billing_Amount'] = df['Billing_Amount'].str.replace(',', '', regex=False)   # Remove commas
-df['Billing_Amount'] = df['Billing_Amount'].str.strip()
+sns.countplot(x='Order_Month', data=df)
+plt.title('Number of Orders per Month')
+plt.show()
+```
 
-# Convert to numeric
-df['Billing_Amount'] = pd.to_numeric(df['Billing_Amount'], errors='coerce')
-df.head()
-# Save to your Desktop folder
-df.to_csv(r'C:\Users\HP\OneDrive\Desktop\Healthcare Project\healthcare_data_cleaned.csv', index=False)
-print("✓ Cleaned data saved to Desktop/Healthcare Project folder")
+## Key Insights
 
+- Customer Segments: Bronze customers dominate with ₹286.7K, while Gold contributes only ₹6.9K, showing weak premium adoption.
+- Monthly Sales Trend: Sales are strong in April–August (₹74K–80K) but dip sharply in Oct (₹0.32K) and Nov (₹4.19K) before a slight recovery in December.
+- Category Performance: Main Course leads massively (₹372.8K), while snacks (₹26.4K) and salads (₹29.4K) trail behind.
+- Order Status: 38% of orders are cancelled or returned, highlighting operational and satisfaction issues.
+- City-Wise Revenue: Bengaluru tops (₹8K), while Jaipur lags far behind (₹1.5K), showing big regional differences.
 
-Key Insights
-Revenue Crisis & Admissions Dip: Total revenue peaked at ₹29.8M in October, but suffered a drastic 59% drop to ₹12.3M in November, mirroring a similar crash in patient admissions/discharges toward the year-end.
+## Actionable Recommendations
 
-Seasonal Diagnosis: Dengue shows a clear seasonal peak in late summer/early fall, while Cataracts peak in the spring/early summer. Chronic conditions like Hypertension remain stable but still reflect the overall year-end drop.
+1. Upgrade Customers: Encourage Silver users to move to Gold with loyalty rewards and premium benefits.
+2. Address Seasonal Dip: Launch festival/winter promotions in Oct–Nov to prevent sharp sales declines.
+3. Promote Underperforming Items: Offer combos and discounts on snacks & salads to boost diversity in orders.
+4. Fix Order Failures: Reduce 38% cancellations/returns by improving restaurant and delivery reliability.
+5. Geographic Expansion: Run city-specific offers in Jaipur & Ahmedabad to increase market penetration.
 
-Operational Bottlenecks: Conditions like Cancer, Sepsis, and Organ Transplant have extremely long Average Length of Stay (20+ days), highlighting a need for targeted discharge planning.
+## Conclusion
 
-Cost Anomaly: Adult Stroke patients drive an exceptionally high average bill (₹1.09M)—three times higher than any other age group for that condition.
+This Zomato Data Analysis project demonstrated the complete journey from raw data to actionable insights.
+Data was preprocessed using ChatGPT prompts and Excel, ensuring quality and consistency.
+SQL was applied for data cleaning, standardization, and KPI generation.
+Python supported exploratory analysis and trend visualization.
+Power BI with DAX measures enabled dynamic dashboards and business intelligence.
+The approach taken here demonstrates a structured problem-solving methodology, data manipulation skills, and the ability to derive actionable insights from data.
 
-Gender Gap in Billing: Female patients account for significantly less total billing compared to male patients, suggesting an opportunity for improved outreach.
-
-Actionable Recommendations
-Address Revenue Crisis: Conduct an immediate, high-priority analysis to pinpoint the exact operational reasons for the severe admission and revenue decline in November/December.
-
-Seasonal Resource Planning: Proactively allocate resources (staffing, supplies, and marketing) for Dengue (late summer/fall) and Cataracts (spring/early summer) to manage predictable patient surges efficiently.
-
-Optimize High-LOS Conditions: Implement proactive discharge planning and process improvements for the 20+ day stay conditions (e.g., Cancer, Sepsis) to increase bed turnover.
-
-Develop Revenue Packages: Create specialized, high-value packages for the Adult and Young Adult segments, which currently show lower billing amounts, to boost revenue diversification.
-
-Review Stroke Protocols: Initiate a focused review of treatment protocols for Adult Stroke patients to identify and optimize cost inefficiencies while maintaining care quality, addressing the ₹1.09M cost anomaly.
-
-Conclusion
-This Healthcare Data Analysis project successfully completed the full data lifecycle, moving from raw data to strategic business action. Data quality was established through rigorous SQL standardization and Python feature engineering, following an initial AI-assisted data assessment. The application of analytics revealed a critical revenue crisis, new seasonal patient demands, and key operational inefficiencies. The resulting recommendations provide the organization with a structured roadmap to stabilize revenue, enhance operational effectiveness, and improve targeted patient care.
 
